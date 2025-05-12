@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script src="./lib.js"></script>
+    <script src="./data.js"></script>
+
+    <div id="chart"></div>
+    <select id="filter-mode">
+        <option value="day">Ngày</option>
+        <option value="month">Tháng</option>
+        <option value="year">Năm</option>
+    </select>
+
+    <script>
+        function groupDataByMode(data, mode) {
+            const grouped = {};
+
+            for (let i = 0; i < data.t.length; i++) {
+                const time = data.t[i];
+                const d = new Date(time * 1000);
+
+                let key;
+                if (mode === 'day') key = d.toLocaleDateString('vi-VN');
+                else if (mode === 'month') key = `${d.getMonth() + 1}/${d.getFullYear()}`;
+                else if (mode === 'year') key = `${d.getFullYear()}`;
+
+                if (!grouped[key]) {
+                    grouped[key] = { t: [], o: [], h: [], l: [], c: [], v: [] };
+                }
+
+                grouped[key].t.push(time);
+                grouped[key].o.push(data.o[i]);
+                grouped[key].h.push(data.h[i]);
+                grouped[key].l.push(data.l[i]);
+                grouped[key].c.push(data.c[i]);
+                grouped[key].v.push(data.v[i]);
+            }
+
+            return grouped;
+        }
+
+        // document.getElementById('filter-mode').addEventListener('change', e => {
+        //     const mode = e.target.value;
+        //     const grouped = groupDataByMode(data, mode);
+        //     const firstKey = Object.keys(grouped)[0]; // load nhóm đầu tiên
+
+        //     const filtered = grouped[firstKey];
+
+        //     const candleData = filtered.t.map((t, i) => ({
+        //         open: filtered.o[i],
+        //         high: filtered.h[i],
+        //         low: filtered.l[i],
+        //         close: filtered.c[i],
+        //         time: t,
+        //     }));
+
+        //     const volumeData = filtered.t.map((t, i) => ({
+        //         time: t,
+        //         value: filtered.v[i],
+        //         color: filtered.o[i] > filtered.c[i] ? '#26a69a' : '#ef5350'
+        //     }));
+
+        //     candleSeries.setData(candleData);
+        //     volumnSeries.setData(volumeData);
+        //     chart.timeScale().fitContent();
+        // });
+
+        const now = new Date();
+
+        // Giờ VN là UTC+7
+        const offsetVN = 7 * 60 * 60; // 7 tiếng → giây
+
+        const currentTimestamp = Math.floor(now.getTime() / 1000) + offsetVN;
+
+        // Tính timestamp bắt đầu và kết thúc ngày hôm nay (đơn vị giây)
+        const startOfDayTimestamp = currentTimestamp - (currentTimestamp % 86400);
+        const endOfDayTimestamp = startOfDayTimestamp + 86400;
+
+
+
+
+        function filterTodayData(arr) {
+            const indexes = arr.t
+                .map((t, i) => (t >= startOfDayTimestamp && t < endOfDayTimestamp ? i : -1))
+                .filter(i => i !== -1);
+
+            return {
+                t: indexes.map(i => arr.t[i]),
+                o: indexes.map(i => arr.o[i]),
+                h: indexes.map(i => arr.h[i]),
+                l: indexes.map(i => arr.l[i]),
+                c: indexes.map(i => arr.c[i]),
+                v: indexes.map(i => arr.v[i]),
+            };
+        }
+
+        const todayData = filterTodayData(data);
+
+        const id = document.getElementById('chart')
+        const chartOptions = {
+            layout: {
+                textColor: '#fff',
+                background: { type: 'solid', color: '#000' },
+            },
+            rightPriceScale: {
+                borderVisible: true,
+            },
+            width: 1000,
+            height: 500,
+            grid: {
+                vertLines: {
+                    color: '#444',  // màu đường dọc
+                    style: 0,       // Solid line
+                    visible: true,
+                },
+                horzLines: {
+                    color: '#444',  // màu đường ngang
+                    style: 0,
+                    visible: true,
+                }
+            },
+            crosshair: {
+                vertLine: {
+                    labelBackgroundColor: '#444' // hoặc '#222', hoặc bất kỳ màu sáng nào phù hợp
+                },
+                horzLine: {
+                    labelBackgroundColor: '#444'
+                }
+            }
+        };
+        const chart = LightweightCharts.createChart(id, chartOptions)
+        chart.applyOptions({
+            timeScale: {
+                timeVisible: true,
+                ticksVisible: false,
+                borderVisible: true,
+            },
+            localization: {
+                timeFormatter: (time) => {
+                    // const date = new Date(time * 1000);
+                    // date.setUTCHours(date.getUTCHours() + 7); // Giờ VN
+                    // return date.toLocaleDateString('vi-VN', {
+                    //     day: '2-digit',
+                    //     month: 'short', // hoặc 'long' nếu muốn "tháng Năm"
+                    //     year: '2-digit', // hoặc 'numeric' nếu muốn 4 chữ số
+                    //     hour12: false,
+                    // });
+                    const date = new Date(time * 1000); // KHÔNG cộng gì thêm
+
+
+                    return date.toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    });
+
+                },
+                locale: 'vi-VN',
+            },
+
+        });
+        //custom label về time UTC + 7
+        chart.timeScale().applyOptions({
+            tickMarkFormatter: (time) => {
+                const date = new Date(time * 1000);
+                console.log(date.toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                }));
+                return date.toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                });
+            },
+        })
+
+        //khởi tạo chart nến
+        const candleSeries = chart.addCandlestickSeries()
+
+        //Khởi tạo chart column
+        const volumnSeries = chart.addHistogramSeries({
+            priceFormat: { type: "volume" },
+            priceScaleId: '',
+            lastValueVisible: true,
+            priceLineVisible: true
+        })
+        volumnSeries.priceScale().applyOptions({
+            // set the positioning of the volume series
+            scaleMargins: {
+                top: 0.7, // highest point of the series will be 70% away from the top
+                bottom: 0,
+
+            },
+
+
+        });
+
+        //set data cho từng chart
+        //data chart nến
+        console.log(filterTodayData(data))
+        const candleData = todayData.t.map((t, i) => {
+            return {
+                open: todayData.o[i],
+                close: todayData.c[i],
+                high: todayData.h[i],
+                low: todayData.l[i],
+                time: t
+            }
+        })
+        const volumeData = todayData.t.map((t, i) => {
+            const open = todayData.o[i];
+            const close = todayData.c[i];
+            return { time: t, value: todayData.v[i], color: open > close ? "#26a69a" : "#ef5350", }
+        })
+
+
+        candleSeries.setData(candleData)
+        volumnSeries.setData(volumeData)
+        chart.timeScale().applyOptions({
+            rightOffset: 5,    // Đẩy biểu đồ sang trái, tạo khoảng trắng phía sau
+        });
+
+
+        chart.timeScale().fitContent();
+    </script>
+</body>
+
+</html>
